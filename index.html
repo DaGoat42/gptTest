@@ -1,15 +1,162 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Throw Distance Visualization</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <meta charset="UTF-8">
+  <title>Throw Calculator</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      font-family: "Comic Sans MS", cursive, sans-serif;
+      background-color: white;
+      color: black;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    .title {
+      font-size: 28px;
+      font-weight: bold;
+      border-bottom: 2px solid black;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+    }
+    .subtitle {
+      font-size: 16px;
+      font-style: italic;
+      margin-bottom: 30px;
+    }
+    .selectors {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 30px;
+    }
+    .select-box {
+      border: 2px solid black;
+      padding: 20px;
+      width: 200px;
+      min-height: 180px;
+    }
+    select {
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    #output {
+      margin-top: 30px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    canvas {
+      margin-top: 20px;
+      border-top: 2px solid black;
+      background-color: #f9f9f9;
+    }
+  </style>
 </head>
 <body>
-    <h1>Throw Distance by Object and Thrower</h1>
-    <div id="chart" style="width: 100%; height: 90vh;"></div>
-    <script src="script.js"></script>
+  <div class="title">THROW CALCULATOR</div>
+  <div class="subtitle">This calculator implements the approximate throwing distance estimation model.<br>Inspired by xkcd's "How To: How to Throw Things"</div>
+
+  <div class="selectors">
+    <div class="select-box">
+      <div><strong>Select a Thrower</strong></div>
+      <select id="throwerSelect"></select>
+    </div>
+    <div class="select-box">
+      <div><strong>Select an Object to be Thrown</strong></div>
+      <select id="objectSelect"></select>
+    </div>
+  </div>
+
+  <div id="output">Throw distance: -- meters</div>
+  <canvas id="visualization" width="600" height="100"></canvas>
+
+  <script>
+    const throwers = {
+      "Connor Price": { length: 0.8, throwPower: 70, mass: 75 },
+      "Thor": { length: 1.2, throwPower: 1000, mass: 300 },
+      "George Washington": { length: 0.9, throwPower: 60, mass: 85 },
+      "Pikachu": { length: 0.4, throwPower: 45, mass: 6 },
+      "NFL Quarterback": { length: 1.1, throwPower: 95, mass: 95 },
+      "Baseball Pitcher": { length: 1.0, throwPower: 85, mass: 90 },
+      "Dog": { length: 0.6, throwPower: 30, mass: 25 }
+    };
+
+    const objects = {
+      "Microwave Oven": { diameter: 0.5, dragC: 0.9, mass: 15 },
+      "Tennis Ball": { diameter: 0.067, dragC: 0.55, mass: 0.058 },
+      "Soccer Ball": { diameter: 0.22, dragC: 0.25, mass: 0.43 },
+      "Pumpkin": { diameter: 0.3, dragC: 0.47, mass: 4.5 },
+      "Laptop": { diameter: 0.35, dragC: 0.7, mass: 2.5 },
+      "Balloon": { diameter: 0.25, dragC: 0.9, mass: 0.01 }
+    };
+
+    const g = 9.805;
+    const air_density = 1.2041;
+
+    const throwerSelect = document.getElementById("throwerSelect");
+    const objectSelect = document.getElementById("objectSelect");
+    const output = document.getElementById("output");
+    const canvas = document.getElementById("visualization");
+    const ctx = canvas.getContext("2d");
+
+    for (const t in throwers) {
+      let option = document.createElement("option");
+      option.value = t;
+      option.textContent = t;
+      throwerSelect.appendChild(option);
+    }
+
+    for (const o in objects) {
+      let option = document.createElement("option");
+      option.value = o;
+      option.textContent = o;
+      objectSelect.appendChild(option);
+    }
+
+    function computeDistance(thrower, obj) {
+      const A = Math.cbrt((3 * thrower.length * thrower.throwPower * thrower.mass) / (obj.mass + thrower.mass / 1000));
+      const B = Math.sqrt((2 * obj.mass * g) / (Math.PI * Math.pow(obj.diameter / 2, 2) * air_density * obj.dragC));
+      const numerator = Math.pow(A, 2) * Math.sqrt(2);
+      const denominator = g * Math.sqrt((Math.pow(A, 4) / Math.pow(B, 4)) * 0.8 + (Math.pow(A, 2) / Math.pow(B, 2)) * 3 + 2);
+      return numerator / denominator;
+    }
+
+    function animateThrow(distance) {
+      const scale = 600 / 100;
+      const xEnd = Math.min(distance * scale, 590);
+      let x = 10;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "black";
+
+      function step() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+        ctx.arc(x, 50, 10, 0, 2 * Math.PI);
+        ctx.fill();
+        if (x < xEnd) {
+          x += 3;
+          requestAnimationFrame(step);
+        }
+      }
+      step();
+    }
+
+    function update() {
+      const thrower = throwers[throwerSelect.value];
+      const obj = objects[objectSelect.value];
+      const dist = computeDistance(thrower, obj);
+      output.textContent = `Throw distance: ${dist.toFixed(2)} meters`;
+      animateThrow(dist);
+    }
+
+    throwerSelect.onchange = update;
+    objectSelect.onchange = update;
+
+    throwerSelect.selectedIndex = 2;
+    objectSelect.selectedIndex = 0;
+    update();
+  </script>
 </body>
 </html>
